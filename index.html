@@ -566,6 +566,13 @@
 </head>
 <body style="font-family: Inter">
 
+<!-- DEMO BANNER -->
+<div id="demoBanner" style="background:#2C3B2D;color:#D4DBCC;font-size:11px;letter-spacing:.14em;text-align:center;padding:.55rem 1.5rem;position:relative;z-index:200;display:flex;align-items:center;justify-content:center;gap:1.2rem;flex-wrap:wrap;">
+  <span>⚠&nbsp; <strong>DEMO-PROJEKT</strong> — Kein echtes Unternehmen. Alle Bilder von Canva. Keine Datenweitergabe.</span>
+  <a href="impressum.html" style="color:#8A9E7C;text-decoration:underline;text-underline-offset:3px;font-size:11px">Impressum</a>
+  <button onclick="document.getElementById('demoBanner').style.display='none'" style="background:none;border:none;color:#8A9E7C;cursor:pointer;font-size:14px;line-height:1;padding:0 2px" title="Schließen">✕</button>
+</div>
+
 <template id="__bundler_thumbnail" data-bg-color="#2C3B2D">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="800" fill="#2C3B2D"/>
@@ -937,12 +944,11 @@
 <footer id="ueber">
   <div class="logo">Wald<span>haus</span></div>
   <nav class="footer-links" aria-label="Footer-Navigation">
-    <a href="#">Impressum</a>
-    <a href="#">Datenschutz</a>
-    <a href="#">AGB</a>
-    <a href="#">Presse</a>
+    <a href="impressum.html">Impressum</a>
+    <a href="datenschutz.html">Datenschutz</a>
+    <a href="https://uyanik-webdesign.de" target="_blank" rel="noopener">Uyanik Webdesign</a>
   </nav>
-  <span class="copy">© 2025 Waldhaus — Fiktiv, zu Demonstrationszwecken</span>
+  <span class="copy">© 2026 Waldhaus — Fiktives Demo-Projekt · Alle Bilder von Canva · Keine echten Daten</span>
 </footer>
 
 <script>
