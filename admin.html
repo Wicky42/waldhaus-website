@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Waldhaus — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --forest:#2C3B2D;
+  --forest-light:#3a4e3b;
+  --moss:#4A5E3A;
+  --mist:#8A9E7C;
+  --fog:#D4DBCC;
+  --cream:#F5F2EC;
+  --cream-dark:#EDE9E1;
+  --bark:#7A5C3A;
+  --text:#1E2419;
+  --muted:#6B7A60;
+  --border:rgba(44,59,45,0.12);
+  --border-strong:rgba(44,59,45,0.22);
+  --sidebar-w:230px;
+  --status-new:#B8821F;
+  --status-new-bg:#FDF3E0;
+  --status-ok:#3A6B45;
+  --status-ok-bg:#E8F2EC;
+  --status-no:#9B3A2F;
+  --status-no-bg:#F9ECEA;
+  --status-arch:#7A8A70;
+  --status-arch-bg:#EAEDE6;
+  --status-pending:#5A6E8A;
+  --status-pending-bg:#E8EDF4;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;font-weight:400;font-size:14px;color:var(--text);background:var(--cream);overflow:hidden;}
+
+/* ── LOGIN ── */
+#loginScreen{
+  position:fixed;inset:0;z-index:999;
+  background:var(--forest);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:2rem;
+}
+.login-logo{font-family:'Playfair Display',serif;font-size:28px;color:var(--cream);letter-spacing:.04em;}
+.login-logo span{font-style:italic;color:var(--mist);}
+.login-box{background:rgba(255,255,255,.07);border:0.5px solid rgba(255,255,255,.15);border-radius:10px;padding:2rem 2.4rem;width:320px;display:flex;flex-direction:column;gap:1.2rem;}
+.login-box label{font-size:10px;letter-spacing:.2em;color:var(--fog);display:block;margin-bottom:4px;}
+.login-box input{width:100%;background:rgba(255,255,255,.09);border:0.5px solid rgba(255,255,255,.18);border-radius:6px;padding:10px 13px;color:var(--cream);font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .25s;}
+.login-box input:focus{border-color:var(--mist);}
+.login-btn{background:var(--mist);border:none;border-radius:6px;padding:11px;color:var(--forest);font-family:'Inter',sans-serif;font-weight:600;font-size:12px;letter-spacing:.12em;cursor:pointer;transition:background .25s;}
+.login-btn:hover{background:var(--fog);}
+.login-hint{font-size:11px;color:rgba(212,219,204,.5);text-align:center;}
+.login-err{font-size:12px;color:#e07070;text-align:center;display:none;}
+
+/* ── LAYOUT ── */
+#app{display:flex;height:100vh;opacity:0;transition:opacity .4s;}
+#app.visible{opacity:1;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--forest);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+  border-right:1px solid rgba(255,255,255,.06);
+}
+.sb-logo{padding:1.6rem 1.4rem 1.2rem;border-bottom:0.5px solid rgba(255,255,255,.08);}
+.sb-logo a{font-family:'Playfair Display',serif;font-size:19px;color:var(--cream);text-decoration:none;letter-spacing:.03em;}
+.sb-logo a span{font-style:italic;color:var(--mist);}
+.sb-logo .sb-role{font-size:10px;letter-spacing:.18em;color:rgba(212,219,204,.45);margin-top:3px;}
+
+nav.sb-nav{padding:.8rem 0;flex:1;}
+.sb-section{font-size:9px;letter-spacing:.22em;color:rgba(212,219,204,.35);padding:.9rem 1.4rem .4rem;text-transform:uppercase;}
+.sb-item{
+  display:flex;align-items:center;gap:10px;
+  padding:.65rem 1.4rem;
+  color:rgba(212,219,204,.72);
+  cursor:pointer;font-size:13px;
+  transition:background .2s,color .2s;
+  border-left:2px solid transparent;
+  user-select:none;
+}
+.sb-item svg{width:16px;height:16px;flex-shrink:0;opacity:.8;}
+.sb-item:hover{background:rgba(255,255,255,.06);color:var(--cream);}
+.sb-item.active{background:rgba(255,255,255,.09);color:var(--cream);border-left-color:var(--mist);}
+.sb-item .badge{margin-left:auto;background:var(--status-new);color:#fff;font-size:10px;font-weight:600;padding:1px 7px;border-radius:99px;}
+
+.sb-footer{padding:1rem 1.4rem;border-top:0.5px solid rgba(255,255,255,.08);font-size:11px;color:rgba(212,219,204,.4);}
+.sb-footer strong{display:block;color:rgba(212,219,204,.7);margin-bottom:2px;}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:rgba(245,242,236,.92);backdrop-filter:blur(14px);
+  border-bottom:0.5px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 2rem;gap:1rem;
+}
+.topbar-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:400;color:var(--forest);}
+.topbar-actions{display:flex;gap:.6rem;align-items:center;}
+.tb-btn{font-size:11px;font-weight:500;letter-spacing:.1em;padding:7px 16px;border-radius:5px;border:0.5px solid var(--border-strong);background:transparent;color:var(--forest);cursor:pointer;transition:all .2s;}
+.tb-btn:hover{background:var(--forest);color:var(--cream);border-color:var(--forest);}
+.tb-btn.primary{background:var(--forest);color:var(--cream);border-color:var(--forest);}
+.tb-btn.primary:hover{background:var(--moss);}
+
+.page{display:none;padding:2rem;flex:1;}
+.page.active{display:block;}
+
+/* ── CARDS / KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.8rem;}
+.kpi{background:#fff;border:0.5px solid var(--border);border-radius:10px;padding:1.3rem 1.5rem;position:relative;overflow:hidden;}
+.kpi-label{font-size:10px;letter-spacing:.18em;color:var(--mist);margin-bottom:.5rem;}
+.kpi-value{font-family:'Playfair Display',serif;font-size:30px;font-weight:400;color:var(--forest);line-height:1;}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:.4rem;}
+.kpi-accent{position:absolute;right:1.2rem;top:50%;transform:translateY(-50%);opacity:.12;font-size:44px;}
+.kpi-trend{font-size:11px;margin-top:.5rem;font-weight:500;}
+.kpi-trend.up{color:var(--status-ok);}
+.kpi-trend.down{color:var(--status-no);}
+
+/* ── TABLES ── */
+.card{background:#fff;border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1.4rem;}
+.card-header{padding:1rem 1.4rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.card-header h3{font-size:13px;font-weight:600;color:var(--forest);letter-spacing:.02em;}
+.card-header .card-meta{font-size:11px;color:var(--muted);}
+table{width:100%;border-collapse:collapse;}
+thead th{font-size:10px;letter-spacing:.14em;color:var(--mist);padding:.7rem 1.1rem;text-align:left;border-bottom:0.5px solid var(--border);font-weight:500;background:var(--cream);}
+tbody tr{border-bottom:0.5px solid var(--border);transition:background .15s;cursor:pointer;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(74,94,58,.04);}
+tbody td{padding:.75rem 1.1rem;font-size:13px;color:var(--text);}
+td.muted{color:var(--muted);}
+
+/* ── STATUS BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:.1em;padding:3px 9px;border-radius:99px;}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.badge-new{background:var(--status-new-bg);color:var(--status-new);}
+.badge-new::before{background:var(--status-new);}
+.badge-ok{background:var(--status-ok-bg);color:var(--status-ok);}
+.badge-ok::before{background:var(--status-ok);}
+.badge-no{background:var(--status-no-bg);color:var(--status-no);}
+.badge-no::before{background:var(--status-no);}
+.badge-arch{background:var(--status-arch-bg);color:var(--status-arch);}
+.badge-arch::before{background:var(--status-arch);}
+.badge-pending{background:var(--status-pending-bg);color:var(--status-pending);}
+.badge-pending::before{background:var(--status-pending);}
+
+/* ── FILTERS ── */
+.filter-bar{display:flex;gap:.6rem;padding:1rem 1.4rem;border-bottom:0.5px solid var(--border);flex-wrap:wrap;}
+.filter-chip{font-size:11px;padding:5px 13px;border-radius:99px;border:0.5px solid var(--border-strong);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;}
+.filter-chip:hover{border-color:var(--moss);color:var(--moss);}
+.filter-chip.active{background:var(--forest);color:var(--cream);border-color:var(--forest);}
+
+/* ── DETAIL PANEL ── */
+.detail-layout{display:grid;grid-template-columns:1fr 360px;gap:1.4rem;}
+.detail-panel{background:#fff;border:0.5px solid var(--border);border-radius:10px;padding:1.6rem;}
+.detail-panel h4{font-family:'Playfair Display',serif;font-size:18px;font-weight:400;color:var(--forest);margin-bottom:1.2rem;}
+.detail-row{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:0.5px solid var(--border);font-size:13px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-row .dk{color:var(--muted);font-size:11px;letter-spacing:.1em;}
+.detail-row .dv{font-weight:500;text-align:right;}
+.action-btns{display:flex;gap:.6rem;flex-direction:column;margin-top:1.2rem;}
+.action-btn{padding:10px 16px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.1em;border:none;cursor:pointer;transition:all .2s;text-align:center;}
+.action-btn.accept{background:var(--status-ok-bg);color:var(--status-ok);}
+.action-btn.accept:hover{background:var(--status-ok);color:#fff;}
+.action-btn.decline{background:var(--status-no-bg);color:var(--status-no);}
+.action-btn.decline:hover{background:var(--status-no);color:#fff;}
+.action-btn.archive{background:var(--cream-dark);color:var(--muted);}
+.action-btn.archive:hover{background:var(--fog);}
+.notiz-area{width:100%;margin-top:.8rem;background:var(--cream);border:0.5px solid var(--border-strong);border-radius:6px;padding:8px 10px;font-family:'Inter',sans-serif;font-size:13px;color:var(--text);resize:vertical;min-height:72px;outline:none;}
+.notiz-area:focus{border-color:var(--moss);}
+
+/* ── CALENDAR ── */
+.cal-layout{display:grid;grid-template-columns:1fr 300px;gap:1.4rem;}
+.cal-nav{display:flex;align-items:center;gap:1rem;padding:1rem 1.4rem;border-bottom:0.5px solid var(--border);}
+.cal-nav h3{font-family:'Playfair Display',serif;font-size:17px;font-weight:400;color:var(--forest);flex:1;text-align:center;}
+.cal-nav button{background:none;border:0.5px solid var(--border-strong);border-radius:5px;padding:5px 12px;cursor:pointer;color:var(--forest);font-size:13px;transition:all .2s;}
+.cal-nav button:hover{background:var(--forest);color:var(--cream);}
+.house-tabs{display:flex;gap:0;border-bottom:0.5px solid var(--border);}
+.htab{flex:1;padding:.75rem;text-align:center;font-size:11px;letter-spacing:.1em;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;}
+.htab:hover{color:var(--forest);}
+.htab.active{color:var(--forest);border-bottom-color:var(--moss);font-weight:600;}
+.cal-grid{padding:1rem 1.4rem;}
+.cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px;}
+.cal-days-header span{font-size:10px;letter-spacing:.12em;color:var(--mist);text-align:center;padding:4px 0;}
+.cal-cells{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-cell{
+  aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-size:12px;
+  cursor:pointer;transition:all .2s;border:0.5px solid transparent;
+  position:relative;
+}
+.cal-cell.empty{cursor:default;}
+.cal-cell.free{background:rgba(74,94,58,.08);color:var(--moss);}
+.cal-cell.free:hover{background:rgba(74,94,58,.18);}
+.cal-cell.booked{background:var(--status-no-bg);color:var(--status-no);}
+.cal-cell.pending{background:var(--status-new-bg);color:var(--status-new);}
+.cal-cell.blocked{background:var(--cream-dark);color:var(--muted);}
+.cal-cell.today{border-color:var(--moss);font-weight:700;}
+.cal-cell .dot{width:4px;height:4px;border-radius:50%;position:absolute;bottom:4px;left:50%;transform:translateX(-50%);}
+.cal-cell.booked .dot{background:var(--status-no);}
+.cal-cell.pending .dot{background:var(--status-new);}
+
+.cal-legend{display:flex;gap:1rem;padding:.8rem 1.4rem;border-top:0.5px solid var(--border);flex-wrap:wrap;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
+.leg-dot{width:9px;height:9px;border-radius:2px;}
+.leg-dot.free{background:rgba(74,94,58,.25);}
+.leg-dot.booked{background:var(--status-no-bg);border:1px solid var(--status-no);}
+.leg-dot.pending{background:var(--status-new-bg);border:1px solid var(--status-new);}
+.leg-dot.blocked{background:var(--cream-dark);border:1px solid var(--border-strong);}
+
+.cal-sidebar-card{background:#fff;border:0.5px solid var(--border);border-radius:10px;padding:1.4rem;}
+.cal-sidebar-card h4{font-size:12px;letter-spacing:.14em;color:var(--mist);margin-bottom:1rem;}
+.booking-mini{padding:.7rem 0;border-bottom:0.5px solid var(--border);font-size:12px;}
+.booking-mini:last-child{border-bottom:none;}
+.booking-mini .bm-name{font-weight:600;color:var(--forest);margin-bottom:2px;}
+.booking-mini .bm-dates{color:var(--muted);}
+.booking-mini .bm-haus{font-size:10px;letter-spacing:.1em;color:var(--mist);margin-top:2px;}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:2fr 1fr;gap:1.4rem;margin-bottom:1.4rem;}
+.stats-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.4rem;margin-bottom:1.4rem;}
+.chart-wrap{padding:1.4rem;position:relative;height:260px;}
+.chart-wrap canvas{max-height:220px;}
+
+/* ── ABRECHNUNG ── */
+.invoice-list{padding:.4rem 0;}
+.inv-row{display:grid;grid-template-columns:80px 1fr 120px 100px 90px 80px;gap:.5rem;align-items:center;padding:.65rem 1.1rem;border-bottom:0.5px solid var(--border);font-size:13px;}
+.inv-row:last-child{border-bottom:none;}
+.inv-row:hover{background:rgba(74,94,58,.04);cursor:pointer;}
+.inv-head{background:var(--cream);font-size:10px;letter-spacing:.14em;color:var(--mist);font-weight:500;}
+.inv-head:hover{background:var(--cream);cursor:default;}
+.tax-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.4rem;}
+.tax-card{background:#fff;border:0.5px solid var(--border);border-radius:10px;padding:1.3rem;}
+.tax-card .tc-label{font-size:10px;letter-spacing:.18em;color:var(--mist);margin-bottom:.4rem;}
+.tax-card .tc-val{font-family:'Playfair Display',serif;font-size:24px;color:var(--forest);}
+.tax-card .tc-sub{font-size:11px;color:var(--muted);margin-top:.3rem;}
+.export-bar{padding:1rem 1.4rem;border-top:0.5px solid var(--border);display:flex;gap:.6rem;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:2rem;right:2rem;background:var(--forest);color:var(--cream);padding:.9rem 1.4rem;border-radius:8px;font-size:13px;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999;max-width:320px;}
+#toast.show{opacity:1;transform:none;}
+
+/* ── MODAL ── */
+#modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(28,36,25,.55);backdrop-filter:blur(4px);}
+#modal.open{display:flex;}
+.modal-box{background:#fff;border-radius:12px;padding:2rem;max-width:480px;width:90%;position:relative;box-shadow:0 24px 60px rgba(28,36,25,.2);}
+.modal-box h3{font-family:'Playfair Display',serif;font-size:20px;font-weight:400;color:var(--forest);margin-bottom:.5rem;}
+.modal-box p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:1.4rem;}
+.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);}
+.modal-actions{display:flex;gap:.6rem;justify-content:flex-end;}
+
+/* ── SCROLLBAR ── */
+@keyframes livePulse{0%,100%{opacity:.4;transform:scale(1);}50%{opacity:1;transform:scale(1.3);}}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--fog);border-radius:3px;}
+
+/* ── UTILS ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;}
+.section-eyebrow{font-size:10px;letter-spacing:.22em;color:var(--mist);margin-bottom:.5rem;}
+.no-data{padding:3rem;text-align:center;color:var(--muted);font-size:13px;}
+.pill-haus{display:inline-block;font-size:10px;letter-spacing:.1em;padding:2px 8px;border-radius:99px;background:var(--cream-dark);color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="loginScreen">
+  <div class="login-logo">Wald<span>haus</span></div>
+  <div class="login-box">
+    <div>
+      <label>BENUTZERNAME</label>
+      <input type="text" id="loginUser" value="admin" autocomplete="username" />
+    </div>
+    <div>
+      <label>PASSWORT</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <div class="login-err" id="loginErr">Ungültige Zugangsdaten.</div>
+    <button class="login-btn" onclick="doLogin()">ANMELDEN</button>
+    <div class="login-hint">Demo-Passwort: <strong style="color:rgba(212,219,204,.7)">waldhaus2026</strong></div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <a href="#">Wald<span>haus</span></a>
+      <div class="sb-role">ADMIN · VERWALTUNG</div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">Übersicht</div>
+      <div class="sb-item active" onclick="showPage('dashboard',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        Dashboard
+      </div>
+
+      <div class="sb-section">Betrieb</div>
+      <div class="sb-item" onclick="showPage('anfragen',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v8a1 1 0 01-1 1H3a1 1 0 01-1-1V3z"/><path d="M2 3l6 5 6-5"/></svg>
+        Anfragen
+        <span class="badge" id="sb-badge">2</span>
+      </div>
+      <div class="sb-item" onclick="showPage('kalender',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="12" rx="1"/><path d="M1 7h14M5 1v4M11 1v4"/></svg>
+        Kalender
+      </div>
+
+      <div class="sb-section">Finanzen</div>
+      <div class="sb-item" onclick="showPage('statistiken',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 12l4-4 3 3 4-5 3 2"/></svg>
+        Statistiken
+      </div>
+      <div class="sb-item" onclick="showPage('abrechnung',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>
+        Abrechnung
+      </div>
+    </nav>
+    <div class="sb-footer">
+      <strong>Max Waldner</strong>
+      Betreiber · <a href="#" onclick="doLogout()" style="color:var(--mist);text-decoration:none;">Abmelden</a>
+      <div style="margin-top:.6rem">
+        <a href="index.html" style="font-size:11px;color:rgba(212,219,204,.45);text-decoration:none;display:flex;align-items:center;gap:5px;transition:color .2s" onmouseover="this.style.color='rgba(212,219,204,.8)'" onmouseout="this.style.color='rgba(212,219,204,.45)'">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 3L5 8l5 5"/></svg>
+          Zur Kundenansicht
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-actions">
+        <span style="font-size:12px;color:var(--muted)" id="topDate"></span>
+        <div id="live-indicator" style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
+        <span style="width:7px;height:7px;border-radius:50%;background:#4caf50;display:inline-block;animation:livePulse 2s ease-in-out infinite"></span>
+        Live
+      </div>
+      <button class="tb-btn primary" onclick="showPage('anfragen',null)">+ Neue Anfrage</button>
+      </div>
+    </div>
+
+    <!-- ──────────── DASHBOARD ──────────── -->
+    <div class="page active" id="page-dashboard">
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">OFFENE ANFRAGEN</div>
+          <div class="kpi-value">2</div>
+          <div class="kpi-sub">Wartet auf Antwort</div>
+          <div class="kpi-trend up">↑ 1 neu heute</div>
+          <div class="kpi-accent">✉</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">BUCHUNGEN JUNI</div>
+          <div class="kpi-value">7</div>
+          <div class="kpi-sub">Bestätigte Aufenthalte</div>
+          <div class="kpi-trend up">↑ +2 vs. Mai</div>
+          <div class="kpi-accent">🏡</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">AUSLASTUNG JUNI</div>
+          <div class="kpi-value">68%</div>
+          <div class="kpi-sub">∅ über alle 3 Häuser</div>
+          <div class="kpi-trend up">↑ +12 % vs. Vorjahr</div>
+          <div class="kpi-accent">📊</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">UMSATZ JUNI (IST)</div>
+          <div class="kpi-value">4.284 €</div>
+          <div class="kpi-sub">Netto, ohne MwSt.</div>
+          <div class="kpi-trend up">↑ +640 € vs. Mai</div>
+          <div class="kpi-accent">€</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><h3>Offene Anfragen</h3><span class="card-meta">Sofort handeln</span></div>
+          <table>
+            <thead><tr><th>GAST</th><th>HAUS</th><th>ZEITRAUM</th><th>STATUS</th></tr></thead>
+            <tbody id="dash-anfragen"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Nächste Anreisen</h3><span class="card-meta">Kommende 14 Tage</span></div>
+          <table>
+            <thead><tr><th>GAST</th><th>HAUS</th><th>ANREISE</th><th>NÄCHTE</th></tr></thead>
+          <tbody id="dash-anreisen"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Belegungsübersicht — nächste 8 Wochen</h3><span class="card-meta">Alle Häuser</span></div>
+        <div style="padding:1.2rem 1.4rem;overflow-x:auto;">
+          <div id="dash-timeline"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────────── ANFRAGEN ──────────── -->
+    <div class="page" id="page-anfragen">
+      <div class="detail-layout">
+        <div>
+          <div class="card">
+            <div class="filter-bar" id="anfrFilter">
+              <button class="filter-chip active" onclick="filterAnfragen('alle',this)">Alle</button>
+              <button class="filter-chip" onclick="filterAnfragen('neu',this)">Neu</button>
+              <button class="filter-chip" onclick="filterAnfragen('bestaetigt',this)">Bestätigt</button>
+              <button class="filter-chip" onclick="filterAnfragen('abgelehnt',this)">Abgelehnt</button>
+              <button class="filter-chip" onclick="filterAnfragen('archiviert',this)">Archiviert</button>
+            </div>
+            <table>
+              <thead><tr><th>GAST</th><th>HAUS</th><th>ZEITRAUM</th><th>NÄCHTE</th><th>PREIS</th><th>STATUS</th><th>EINGEGANGEN</th></tr></thead>
+              <tbody id="anfragen-table"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="anfragen-detail">
+          <div class="card" style="padding:2rem;text-align:center;color:var(--muted)">
+            <p style="font-size:13px">← Anfrage auswählen,<br/>um Details zu sehen.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────────── KALENDER ──────────── -->
+    <div class="page" id="page-kalender">
+      <div class="cal-layout">
+        <div class="card">
+          <div class="house-tabs" id="haus-tabs">
+            <div class="htab active" onclick="selectHaus(0,this)">Das Nebelhaus</div>
+            <div class="htab" onclick="selectHaus(1,this)">Die Lichtung</div>
+            <div class="htab" onclick="selectHaus(2,this)">Der Försterturm</div>
+          </div>
+          <div class="cal-nav">
+            <button onclick="calNav(-1)">‹</button>
+            <h3 id="cal-month-label"></h3>
+            <button onclick="calNav(1)">›</button>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-days-header">
+              <span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+            </div>
+            <div class="cal-cells" id="cal-cells"></div>
+          </div>
+          <div class="cal-legend">
+            <div class="leg-item"><div class="leg-dot free"></div> Frei</div>
+            <div class="leg-item"><div class="leg-dot booked"></div> Belegt</div>
+            <div class="leg-item"><div class="leg-dot pending"></div> Angefragt</div>
+            <div class="leg-item"><div class="leg-dot blocked"></div> Gesperrt</div>
+          </div>
+        </div>
+        <div>
+          <div class="cal-sidebar-card">
+            <h4>BELEGUNGEN DIESEN MONAT</h4>
+            <div id="cal-sidebar-list"></div>
+          </div>
+          <div class="cal-sidebar-card" style="margin-top:1rem">
+            <h4>AUSLASTUNG</h4>
+            <div style="font-size:13px;display:flex;flex-direction:column;gap:.7rem;padding:.2rem 0" id="cal-auslastung"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────────── STATISTIKEN ──────────── -->
+    <div class="page" id="page-statistiken">
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">UMSATZ YTD</div>
+          <div class="kpi-value">18.940 €</div>
+          <div class="kpi-sub">Jan–Jun 2026, netto</div>
+          <div class="kpi-trend up">↑ +22 % vs. Vorjahr</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">∅ AUFENTHALT</div>
+          <div class="kpi-value">3,8 N.</div>
+          <div class="kpi-sub">Nächte pro Buchung</div>
+          <div class="kpi-trend up">↑ +0,4 vs. Vorjahr</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">KONVERSION</div>
+          <div class="kpi-value">71 %</div>
+          <div class="kpi-sub">Anfragen → Buchungen</div>
+          <div class="kpi-trend down">↓ −3 % vs. Vorjahr</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">BELIEBTESTES HAUS</div>
+          <div class="kpi-value" style="font-size:18px">Nebelhaus</div>
+          <div class="kpi-sub">82 % Auslastung YTD</div>
+          <div class="kpi-trend up">↑ Nr. 1 seit 2 Jahren</div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="card">
+          <div class="card-header"><h3>Monatsumsatz 2026</h3><span class="card-meta">Netto in €, alle Häuser</span></div>
+          <div class="chart-wrap"><canvas id="chart-umsatz"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Auslastung je Haus</h3><span class="card-meta">YTD 2026</span></div>
+          <div class="chart-wrap"><canvas id="chart-auslastung"></canvas></div>
+        </div>
+      </div>
+
+      <div class="stats-grid-3">
+        <div class="card">
+          <div class="card-header"><h3>Anfragen / Monat</h3></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chart-anfragen"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Aufenthaltsdauer</h3></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chart-naechte"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Umsatz je Haus</h3><span class="card-meta">YTD</span></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chart-haeuser"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────────── ABRECHNUNG ──────────── -->
+    <div class="page" id="page-abrechnung">
+      <div class="tax-summary">
+        <div class="tax-card">
+          <div class="tc-label">BRUTTOUMSATZ YTD</div>
+          <div class="tc-val">22.539 €</div>
+          <div class="tc-sub">inkl. 7 % MwSt. (ermäßigt Beherbergung)</div>
+        </div>
+        <div class="tax-card">
+          <div class="tc-label">MWST. ABZUFÜHREN</div>
+          <div class="tc-val">1.473 €</div>
+          <div class="tc-sub">7 % auf 21.065 € Netto</div>
+        </div>
+        <div class="tax-card">
+          <div class="tc-label">NETTOUMSATZ YTD</div>
+          <div class="tc-val">21.066 €</div>
+          <div class="tc-sub">nach MwSt.-Abzug</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Rechnungsübersicht 2026</h3>
+          <span class="card-meta">Alle bestätigten Buchungen</span>
+        </div>
+        <div class="invoice-list">
+          <div class="inv-row inv-head">
+            <span>RECHNUNG</span><span>GAST</span><span>HAUS</span><span>ZEITRAUM</span><span>BETRAG</span><span>STATUS</span>
+          </div>
+          <div id="invoice-rows"></div>
+        </div>
+        <div class="export-bar">
+          <button class="tb-btn" onclick="toast('CSV wird heruntergeladen …')">CSV exportieren</button>
+          <button class="tb-btn" onclick="toast('PDF-Zusammenfassung wird generiert …')">PDF Q2-Bericht</button>
+          <button class="tb-btn" onclick="toast('DATEV-Export vorbereitet')">DATEV-Export</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1.4rem">
+        <div class="card-header"><h3>Steuerübersicht je Quartal</h3></div>
+        <table>
+          <thead><tr><th>QUARTAL</th><th>BUCHUNGEN</th><th>BRUTTO</th><th>NETTO</th><th>MWST.</th><th>STATUS</th></tr></thead>
+          <tbody>
+            <tr><td>Q1 2026</td><td>8</td><td>7.492 €</td><td>7.003 €</td><td>489 €</td><td><span class="badge badge-ok">Abgeführt</span></td></tr>
+            <tr><td>Q2 2026</td><td>11</td><td>15.047 €</td><td>14.063 €</td><td>984 €</td><td><span class="badge badge-pending">Offen bis 30.7.</span></td></tr>
+            <tr><td>Q3 2026</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="badge badge-arch">Noch nicht fällig</span></td></tr>
+            <tr><td>Q4 2026</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="badge badge-arch">Noch nicht fällig</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MODAL -->
+<div id="modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3 id="modal-title"></h3>
+    <p id="modal-body"></p>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const HAEUSER = ['nebelhaus','lichtung','foersterturm'];
+const HAUS_LABELS = {nebelhaus:'Das Nebelhaus',lichtung:'Die Lichtung',foersterturm:'Der Försterturm'};
+const HAUS_PREIS = {nebelhaus:148,lichtung:122,foersterturm:195};
+
+const anfragen = [
+  {id:'ANF-001',name:'Julia Becker',email:'j.becker@example.de',tel:'+49 160 9871234',
+   haus:'nebelhaus',anreise:'2026-07-04',abreise:'2026-07-08',naechte:4,preis:592,
+   wuensche:'Wir feiern unseren 10. Hochzeitstag. Gibt es die Möglichkeit, Blumen ins Haus zu stellen?',
+   status:'neu',notiz:'',eingegangen:'2026-06-15'},
+
+  {id:'ANF-002',name:'Thomas Gruber',email:'t.gruber@web.de',tel:'',
+   haus:'foersterturm',anreise:'2026-07-18',abreise:'2026-07-25',naechte:7,preis:1365,
+   wuensche:'Wir kommen zu siebt mit zwei Kindern (8 + 11 Jahre). Sind Fahrräder mietbar?',
+   status:'neu',notiz:'Fahrrad-Verleih abklären mit lokalem Anbieter.',eingegangen:'2026-06-14'},
+
+  {id:'ANF-003',name:'Sophie Meier',email:'sophie.m@gmx.de',tel:'+49 176 5554321',
+   haus:'lichtung',anreise:'2026-06-28',abreise:'2026-07-01',naechte:3,preis:366,
+   wuensche:'Nur wir zwei. Stille, Wald und Ruhe.',
+   status:'bestaetigt',notiz:'E-Mail am 10.6. bestätigt. Anzahlung eingegangen.',eingegangen:'2026-06-08'},
+
+  {id:'ANF-004',name:'Markus Lehner',email:'m.lehner@firma.de',tel:'+49 89 123456',
+   haus:'nebelhaus',anreise:'2026-06-20',abreise:'2026-06-22',naechte:2,preis:296,
+   wuensche:'Spontanurlaub, kurzfristig. Kein besonderer Wunsch.',
+   status:'abgelehnt',notiz:'Haus war bereits intern blockiert (Wartung Kachelofen).',eingegangen:'2026-06-12'},
+
+  {id:'ANF-005',name:'Familie Hofmann',email:'hofmann-fam@outlook.de',tel:'+49 170 8887766',
+   haus:'foersterturm',anreise:'2026-05-24',abreise:'2026-05-31',naechte:7,preis:1365,
+   wuensche:'Drei Generationen. Oma kommt auch mit (74). Gibt es ebenerdigen Zugang?',
+   status:'archiviert',notiz:'Erfolgreich abgeschlossen. Sehr positives Feedback per E-Mail.',eingegangen:'2026-05-10'},
+];
+
+// Belegungen: {haus, von, bis, typ, gast}
+// typ: booked | pending | blocked
+const belegungen = [
+  // Nebelhaus
+  {haus:'nebelhaus',von:'2026-06-28',bis:'2026-07-01',typ:'booked',gast:'Sophie Meier (über Lichtung)'},
+  {haus:'nebelhaus',von:'2026-06-20',bis:'2026-06-22',typ:'blocked',gast:'Wartung Kachelofen'},
+  {haus:'nebelhaus',von:'2026-07-04',bis:'2026-07-08',typ:'pending',gast:'Julia Becker (Anfrage offen)'},
+  {haus:'nebelhaus',von:'2026-07-14',bis:'2026-07-19',typ:'booked',gast:'Privat: Schwiegermutter'},
+  {haus:'nebelhaus',von:'2026-08-02',bis:'2026-08-09',typ:'booked',gast:'Sarah & Lukas Kern'},
+  // Lichtung
+  {haus:'lichtung',von:'2026-06-28',bis:'2026-07-01',typ:'booked',gast:'Sophie Meier'},
+  {haus:'lichtung',von:'2026-07-12',bis:'2026-07-16',typ:'booked',gast:'Petra Vogel'},
+  {haus:'lichtung',von:'2026-07-22',bis:'2026-07-26',typ:'booked',gast:'Anna & Klaus Weiss'},
+  {haus:'lichtung',von:'2026-08-15',bis:'2026-08-22',typ:'blocked',gast:'Renovierung Bad'},
+  // Försterturm
+  {haus:'foersterturm',von:'2026-05-24',bis:'2026-05-31',typ:'booked',gast:'Familie Hofmann'},
+  {haus:'foersterturm',von:'2026-06-10',bis:'2026-06-14',typ:'booked',gast:'Claus & Doris Braun'},
+  {haus:'foersterturm',von:'2026-07-18',bis:'2026-07-25',typ:'pending',gast:'Thomas Gruber (Anfrage offen)'},
+  {haus:'foersterturm',von:'2026-08-01',bis:'2026-08-08',typ:'booked',gast:'Familie Steinbach'},
+];
+
+const invoices = [
+  {nr:'RG-2026-001',gast:'Familie Hofmann',haus:'foersterturm',zeitraum:'24.05.–31.05.',betrag:'1.460,55 €',netto:'1.365,00 €',mwst:'95,55 €',status:'bezahlt'},
+  {nr:'RG-2026-002',gast:'Claus & Doris Braun',haus:'foersterturm',zeitraum:'10.06.–14.06.',betrag:'834,60 €',netto:'780,00 €',mwst:'54,60 €',status:'bezahlt'},
+  {nr:'RG-2026-003',gast:'Sophie Meier',haus:'lichtung',zeitraum:'28.06.–01.07.',betrag:'391,62 €',netto:'366,00 €',mwst:'25,62 €',status:'offen'},
+  {nr:'RG-2026-004',gast:'Sarah & Lukas Kern',haus:'nebelhaus',zeitraum:'02.08.–09.08.',betrag:'1.106,04 €',netto:'1.036,00 €',mwst:'72,52 €',status:'ausstehend'},
+  {nr:'RG-2026-005',gast:'Familie Steinbach',haus:'foersterturm',zeitraum:'01.08.–08.08.',betrag:'1.460,55 €',netto:'1.365,00 €',mwst:'95,55 €',status:'ausstehend'},
+  {nr:'RG-2026-006',gast:'Petra Vogel',haus:'lichtung',zeitraum:'12.07.–16.07.',betrag:'521,54 €',netto:'488,00 €',mwst:'34,16 €',status:'offen'},
+];
+
+// ═══════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════
+function doLogin(){
+  const p=document.getElementById('loginPass').value;
+  if(p==='waldhaus2026'){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').classList.add('visible');
+    init();
+  } else {
+    document.getElementById('loginErr').style.display='block';
+    document.getElementById('loginPass').value='';
+  }
+}
+document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+function doLogout(){document.getElementById('loginScreen').style.display='flex';document.getElementById('app').classList.remove('visible');}
+
+// ── Poll for new form submissions every 10s ──
+setInterval(()=>{
+  try {
+    const live = JSON.parse(localStorage.getItem('wh_anfragen') || '[]');
+    let added = 0;
+    live.forEach(entry => {
+      if (!anfragen.find(a => a.id === entry.id)) {
+        anfragen.unshift(entry);
+        added++;
+      }
+    });
+    if (added > 0) {
+      renderDashboard();
+      const activePage = document.querySelector('.page.active');
+      if (activePage && activePage.id === 'page-anfragen') renderAnfragen(currentFilter);
+      toast(added + ' neue Anfrage(n) aus dem Buchungsformular eingegangen.');
+    }
+  } catch(e){}
+}, 10000);
+
+// ═══════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════
+const pageTitles={dashboard:'Dashboard',anfragen:'Buchungsanfragen',kalender:'Kalender & Verfügbarkeiten',statistiken:'Statistiken & Auswertungen',abrechnung:'Abrechnung & Steuern'};
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('pageTitle').textContent=pageTitles[id];
+  if(el)el.classList.add('active');
+  else{document.querySelectorAll('.sb-item').forEach(i=>{if(i.textContent.trim().toLowerCase().includes(id.substring(0,5)))i.classList.add('active');});}
+  if(id==='statistiken')initCharts();
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+function init(){
+  // ── Merge live form submissions from localStorage ──
+  try {
+    const live = JSON.parse(localStorage.getItem('wh_anfragen') || '[]');
+    live.forEach(entry => {
+      if (!anfragen.find(a => a.id === entry.id)) {
+        anfragen.unshift(entry);
+      }
+    });
+  } catch(e) {}
+  document.getElementById('topDate').textContent=new Date().toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  renderDashboard();
+  renderAnfragen('alle');
+  initKalender();
+  renderAbrechnung();
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════
+function renderDashboard(){
+  // Offene Anfragen
+  const open=anfragen.filter(a=>a.status==='neu');
+  const tbody=document.getElementById('dash-anfragen');
+  tbody.innerHTML=open.map(a=>`
+    <tr onclick="goToAnfrage('${a.id}')">
+      <td><strong>${a.name}</strong></td>
+      <td><span class="pill-haus">${HAUS_LABELS[a.haus].replace('Das ','').replace('Die ','').replace('Der ','')}</span></td>
+      <td class="muted">${fmtDate(a.anreise)} – ${fmtDate(a.abreise)}</td>
+      <td>${badgeHtml(a.status)}</td>
+    </tr>`).join('');
+  if(!open.length)tbody.innerHTML='<tr><td colspan="4" class="no-data">Keine offenen Anfragen.</td></tr>';
+
+  // Nächste Anreisen
+  const today=new Date();today.setHours(0,0,0,0);
+  const in14=new Date(today);in14.setDate(in14.getDate()+14);
+  const upcoming=belegungen
+    .filter(b=>new Date(b.von)>=today&&new Date(b.von)<=in14&&b.typ!=='blocked')
+    .sort((a,b2)=>new Date(a.von)-new Date(b2.von));
+  const tbody2=document.getElementById('dash-anreisen');
+  tbody2.innerHTML=upcoming.map(b=>`
+    <tr>
+      <td><strong>${b.gast.split('(')[0].trim()}</strong></td>
+      <td><span class="pill-haus">${HAUS_LABELS[b.haus].replace('Das ','').replace('Die ','').replace('Der ','')}</span></td>
+      <td class="muted">${fmtDate(b.von)}</td>
+      <td>${dayDiff(b.von,b.bis)} N.</td>
+    </tr>`).join('');
+  if(!upcoming.length)tbody2.innerHTML='<tr><td colspan="4" style="padding:1.2rem;color:var(--muted);font-size:13px">Keine Anreisen in den nächsten 14 Tagen.</td></tr>';
+
+  // Timeline
+  renderTimeline();
+  document.getElementById('sb-badge').textContent=open.length;
+  // flash badge if new submissions came in from form
+  if(open.some(a=>a._fromForm)) {
+    const b=document.getElementById('sb-badge');
+    b.style.animation='none';
+    b.style.background='#c0392b';
+    setTimeout(()=>b.style.background='',2000);
+  }
+}
+
+function goToAnfrage(id){
+  showPage('anfragen',document.querySelectorAll('.sb-item')[1]);
+  setTimeout(()=>openAnfrageDetail(id),50);
+}
+
+function renderTimeline(){
+  const el=document.getElementById('dash-timeline');
+  const today=new Date();today.setHours(0,0,0,0);
+  const days=[];
+  for(let i=0;i<56;i++){const d=new Date(today);d.setDate(d.getDate()+i);days.push(d);}
+  const hausList=['nebelhaus','lichtung','foersterturm'];
+  const labels=['Nebelhaus','Lichtung','Försterturm'];
+  let html='<div style="display:grid;grid-template-rows:repeat(3,32px);gap:4px;">';
+  hausList.forEach((haus,hi)=>{
+    html+=`<div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:10px;letter-spacing:.08em;color:var(--muted);width:68px;flex-shrink:0">${labels[hi]}</span>
+      <div style="display:flex;gap:2px;flex:1">`;
+    days.forEach(d=>{
+      const ds=d.toISOString().split('T')[0];
+      let cls='free';
+      for(const b of belegungen){
+        if(b.haus!==haus)continue;
+        if(ds>=b.von&&ds<b.bis){cls=b.typ==='blocked'?'blocked':b.typ==='pending'?'pending':'booked';break;}
+      }
+      const isToday=d.getTime()===today.getTime();
+      const bg=cls==='booked'?'var(--status-no)':cls==='pending'?'var(--status-new)':cls==='blocked'?'#ccc':'rgba(74,94,58,.25)';
+      html+=`<div title="${ds}" style="flex:1;height:28px;border-radius:2px;background:${bg};${isToday?'outline:2px solid var(--moss);':''}"></div>`;
+    });
+    html+='</div></div>';
+  });
+  html+='</div>';
+  // date markers
+  html+='<div style="display:flex;gap:2px;padding-left:74px;margin-top:4px;">';
+  days.forEach((d,i)=>{
+    html+=`<div style="flex:1;font-size:9px;color:var(--muted);text-align:center">${i%7===0?d.getDate():''}`;
+    html+='</div>';
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// ANFRAGEN
+// ═══════════════════════════════════════
+let currentFilter='alle';
+function filterAnfragen(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('#anfrFilter .filter-chip').forEach(c=>c.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderAnfragen(f);
+}
+function renderAnfragen(f){
+  const list=f==='alle'?anfragen:anfragen.filter(a=>a.status===f);
+  const tbody=document.getElementById('anfragen-table');
+  tbody.innerHTML=list.map(a=>`
+    <tr onclick="openAnfrageDetail('${a.id}')">
+      <td><strong>${a.name}</strong></td>
+      <td><span class="pill-haus">${HAUS_LABELS[a.haus]}</span></td>
+      <td class="muted">${fmtDate(a.anreise)} – ${fmtDate(a.abreise)}</td>
+      <td>${a.naechte}</td>
+      <td>${a.preis.toLocaleString('de-DE')} €</td>
+      <td>${badgeHtml(a.status)}</td>
+      <td class="muted">${fmtDate(a.eingegangen)}</td>
+    </tr>`).join('');
+  if(!list.length)tbody.innerHTML='<tr><td colspan="7" class="no-data">Keine Anfragen in dieser Kategorie.</td></tr>';
+}
+
+function openAnfrageDetail(id){
+  const a=anfragen.find(x=>x.id===id);
+  if(!a)return;
+  const el=document.getElementById('anfragen-detail');
+  const brutto=(a.preis*1.07).toFixed(2).replace('.',',');
+  const mwst=(a.preis*0.07).toFixed(2).replace('.',',');
+  el.innerHTML=`
+  <div class="detail-panel">
+    <h4>${a.name}</h4>
+    <div class="detail-row"><span class="dk">ANFRAGE-ID</span><span class="dv">${a.id}</span></div>
+    <div class="detail-row"><span class="dk">HAUS</span><span class="dv">${HAUS_LABELS[a.haus]}</span></div>
+    <div class="detail-row"><span class="dk">ANREISE</span><span class="dv">${fmtDate(a.anreise)}</span></div>
+    <div class="detail-row"><span class="dk">ABREISE</span><span class="dv">${fmtDate(a.abreise)}</span></div>
+    <div class="detail-row"><span class="dk">NÄCHTE</span><span class="dv">${a.naechte}</span></div>
+    <div class="detail-row"><span class="dk">NETTO</span><span class="dv">${a.preis.toLocaleString('de-DE')} €</span></div>
+    <div class="detail-row"><span class="dk">MWST. (7 %)</span><span class="dv">${mwst} €</span></div>
+    <div class="detail-row"><span class="dk">BRUTTO</span><span class="dv"><strong>${brutto} €</strong></span></div>
+    <div class="detail-row"><span class="dk">E-MAIL</span><span class="dv"><a href="mailto:${a.email}" style="color:var(--moss)">${a.email}</a></span></div>
+    <div class="detail-row"><span class="dk">TELEFON</span><span class="dv">${a.tel||'—'}</span></div>
+    <div class="detail-row"><span class="dk">STATUS</span><span class="dv">${badgeHtml(a.status)}</span></div>
+    <div class="detail-row"><span class="dk">EINGEGANGEN</span><span class="dv">${fmtDate(a.eingegangen)}</span></div>
+    ${a.wuensche?`<div style="margin-top:.8rem;padding:.8rem;background:var(--cream);border-radius:6px;font-size:12px;color:var(--muted);line-height:1.6"><span style="font-size:10px;letter-spacing:.14em;display:block;margin-bottom:.3rem;color:var(--mist)">SONDERWÜNSCHE</span>${a.wuensche}</div>`:''}
+    <div class="action-btns">
+      ${a.status==='neu'?`
+      <button class="action-btn accept" onclick="changeStatus('${a.id}','bestaetigt')">✓ ANFRAGE BESTÄTIGEN</button>
+      <button class="action-btn decline" onclick="changeStatus('${a.id}','abgelehnt')">✗ ANFRAGE ABLEHNEN</button>`:''}
+      ${a.status==='bestaetigt'||a.status==='abgelehnt'?`
+      <button class="action-btn archive" onclick="changeStatus('${a.id}','archiviert')">ARCHIVIEREN</button>`:''}
+    </div>
+    <div style="margin-top:1rem">
+      <div style="font-size:10px;letter-spacing:.14em;color:var(--mist);margin-bottom:.4rem">INTERNE NOTIZ</div>
+      <textarea class="notiz-area" id="notiz-${a.id}" placeholder="Nur intern sichtbar …">${a.notiz}</textarea>
+      <button class="tb-btn" style="margin-top:.5rem;width:100%" onclick="saveNotiz('${a.id}')">Notiz speichern</button>
+    </div>
+  </div>`;
+}
+
+function changeStatus(id,newStatus){
+  const a=anfragen.find(x=>x.id===id);
+  if(!a)return;
+  a.status=newStatus;
+  renderAnfragen(currentFilter);
+  openAnfrageDetail(id);
+  renderDashboard();
+  const msgs={bestaetigt:'Anfrage bestätigt. Bestätigungs-E-Mail vorbereitet.',abgelehnt:'Anfrage abgelehnt.',archiviert:'Anfrage archiviert.'};
+  toast(msgs[newStatus]||'Status aktualisiert.');
+}
+
+function saveNotiz(id){
+  const a=anfragen.find(x=>x.id===id);
+  if(a){a.notiz=document.getElementById('notiz-'+id).value;toast('Notiz gespeichert.');}
+}
+
+// ═══════════════════════════════════════
+// KALENDER
+// ═══════════════════════════════════════
+let calYear=2026,calMonth=6,calHaus=0; // month 0-indexed
+function initKalender(){calYear=2026;calMonth=5;renderKalender();}
+function calNav(d){calMonth+=d;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderKalender();}
+function selectHaus(i,el){calHaus=i;document.querySelectorAll('.htab').forEach(t=>t.classList.remove('active'));if(el)el.classList.add('active');renderKalender();}
+
+function renderKalender(){
+  const haus=HAEUSER[calHaus];
+  const months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  document.getElementById('cal-month-label').textContent=months[calMonth]+' '+calYear;
+  const first=new Date(calYear,calMonth,1);
+  let startDow=first.getDay();if(startDow===0)startDow=7;
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const today=new Date();today.setHours(0,0,0,0);
+  const cells=document.getElementById('cal-cells');
+  let html='';
+  for(let i=1;i<startDow;i++)html+='<div class="cal-cell empty"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cellDate=new Date(calYear,calMonth,d);
+    let cls='free';
+    for(const b of belegungen){
+      if(b.haus!==haus)continue;
+      if(dateStr>=b.von&&dateStr<b.bis){cls=b.typ==='blocked'?'blocked':b.typ==='pending'?'pending':'booked';break;}
+    }
+    const isToday=cellDate.getTime()===today.getTime();
+    html+=`<div class="cal-cell ${cls}${isToday?' today':''}" title="${dateStr}" onclick="calCellClick('${dateStr}','${cls}','${haus}')">
+      ${d}${cls!=='free'?'<span class="dot"></span>':''}
+    </div>`;
+  }
+  cells.innerHTML=html;
+  renderCalSidebar(haus);
+}
+
+function calCellClick(date,cls,haus){
+  if(cls==='free'){
+    showModal('Tag blockieren',`${fmtDate(date)} für ${HAUS_LABELS[haus]} blockieren?`,
+      `<button class="action-btn accept" onclick="toast('Blockierung eingetragen.');closeModal()">Blockieren</button>
+       <button class="action-btn archive" onclick="closeModal()">Abbrechen</button>`);
+  } else {
+    const b=belegungen.find(b=>b.haus===haus&&date>=b.von&&date<b.bis);
+    if(b)showModal('Belegungsdetail',`<strong>${b.gast}</strong><br>${fmtDate(b.von)} – ${fmtDate(b.bis)}<br>Typ: ${b.typ}`,
+      `<button class="action-btn archive" onclick="closeModal()">Schließen</button>`);
+  }
+}
+
+function renderCalSidebar(haus){
+  const monthBelegungen=belegungen.filter(b=>{
+    if(b.haus!==haus)return false;
+    const bStart=new Date(b.von);
+    return bStart.getFullYear()===calYear&&bStart.getMonth()===calMonth;
+  });
+  const list=document.getElementById('cal-sidebar-list');
+  list.innerHTML=monthBelegungen.map(b=>`
+    <div class="booking-mini">
+      <div class="bm-name">${b.gast}</div>
+      <div class="bm-dates">${fmtDate(b.von)} – ${fmtDate(b.bis)}</div>
+      <div class="bm-haus">${b.typ.toUpperCase()}</div>
+    </div>`).join('')||'<p style="font-size:12px;color:var(--muted)">Keine Belegungen.</p>';
+
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  let bookedDays=0;
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    for(const b of belegungen){if(b.haus===haus&&ds>=b.von&&ds<b.bis&&b.typ!=='blocked'){bookedDays++;break;}}
+  }
+  const pct=Math.round(bookedDays/daysInMonth*100);
+  const aus=document.getElementById('cal-auslastung');
+  aus.innerHTML=`
+    <div style="display:flex;justify-content:space-between"><span>${HAUS_LABELS[haus].replace('Das ','').replace('Die ','').replace('Der ','')}</span><strong>${pct}%</strong></div>
+    <div style="height:6px;border-radius:3px;background:var(--fog);overflow:hidden">
+      <div style="height:100%;border-radius:3px;background:var(--moss);width:${pct}%"></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">${bookedDays} von ${daysInMonth} Nächten belegt</div>`;
+}
+
+// ═══════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════
+let chartsInited=false;
+function initCharts(){
+  if(chartsInited)return;chartsInited=true;
+  const fc=v=>v;
+  const months=['Jan','Feb','Mär','Apr','Mai','Jun'];
+
+  // Monatsumsatz
+  new Chart(document.getElementById('chart-umsatz'),{
+    type:'bar',
+    data:{
+      labels:months,
+      datasets:[
+        {label:'Nebelhaus',data:[1184,1332,1480,1628,1628,1776],backgroundColor:'rgba(44,59,45,.75)',borderRadius:4},
+        {label:'Lichtung',data:[732,854,976,976,854,976],backgroundColor:'rgba(74,94,58,.55)',borderRadius:4},
+        {label:'Försterturm',data:[975,1170,1365,1365,1170,1365],backgroundColor:'rgba(138,158,124,.55)',borderRadius:4},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},boxWidth:10}}},scales:{x:{stacked:true,ticks:{font:{size:10}}},y:{stacked:true,ticks:{font:{size:10},callback:v=>v+'€'}}}}
+  });
+
+  // Auslastung Doughnut
+  new Chart(document.getElementById('chart-auslastung'),{
+    type:'doughnut',
+    data:{
+      labels:['Nebelhaus','Lichtung','Försterturm'],
+      datasets:[{data:[82,68,74],backgroundColor:['rgba(44,59,45,.85)','rgba(74,94,58,.7)','rgba(138,158,124,.8)'],borderWidth:0,hoverOffset:6}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10}}}}
+  });
+
+  // Anfragen/Monat
+  new Chart(document.getElementById('chart-anfragen'),{
+    type:'line',
+    data:{
+      labels:months,
+      datasets:[{label:'Anfragen',data:[6,7,9,8,10,11],borderColor:'var(--moss)',backgroundColor:'rgba(74,94,58,.08)',fill:true,tension:.4,pointRadius:3}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:10}}}}}
+  });
+
+  // Aufenthaltsdauer Histogram
+  new Chart(document.getElementById('chart-naechte'),{
+    type:'bar',
+    data:{
+      labels:['1–2 N.','3–4 N.','5–7 N.','7+ N.'],
+      datasets:[{label:'Buchungen',data:[4,12,8,5],backgroundColor:'rgba(74,94,58,.6)',borderRadius:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:10}}}}}
+  });
+
+  // Umsatz je Haus
+  new Chart(document.getElementById('chart-haeuser'),{
+    type:'pie',
+    data:{
+      labels:['Nebelhaus','Lichtung','Försterturm'],
+      datasets:[{data:[9028,5368,6844],backgroundColor:['rgba(44,59,45,.85)','rgba(74,94,58,.7)','rgba(138,158,124,.8)'],borderWidth:0}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10}}}}
+  });
+}
+
+// ═══════════════════════════════════════
+// ABRECHNUNG
+// ═══════════════════════════════════════
+function renderAbrechnung(){
+  const el=document.getElementById('invoice-rows');
+  const statusBadge={bezahlt:'badge-ok',offen:'badge-new',ausstehend:'badge-pending'};
+  const statusLabel={bezahlt:'Bezahlt',offen:'Offen',ausstehend:'Ausstehend'};
+  el.innerHTML=invoices.map(inv=>`
+    <div class="inv-row" onclick="toast('Rechnung ${inv.nr} — PDF-Vorschau öffnet …')">
+      <span style="font-size:11px;color:var(--muted)">${inv.nr}</span>
+      <span><strong>${inv.gast}</strong></span>
+      <span><span class="pill-haus">${HAUS_LABELS[inv.haus].replace('Das ','').replace('Die ','').replace('Der ','')}</span></span>
+      <span style="font-size:12px;color:var(--muted)">${inv.zeitraum}</span>
+      <span><strong>${inv.betrag}</strong></span>
+      <span><span class="badge ${statusBadge[inv.status]}">${statusLabel[inv.status]}</span></span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function fmtDate(s){
+  if(!s)return'—';
+  const [y,m,d]=s.split('-');
+  return`${d}.${m}.${y}`;
+}
+function dayDiff(a,b){return Math.round((new Date(b)-new Date(a))/(864e5));}
+function badgeHtml(s){
+  const map={neu:'badge-new OFFEN',bestaetigt:'badge-ok BESTÄTIGT',abgelehnt:'badge-no ABGELEHNT',archiviert:'badge-arch ARCHIVIERT',pending:'badge-pending ANGEFRAGT'};
+  const [cls,label]=(map[s]||'badge-arch '+s.toUpperCase()).split(' ');
+  return`<span class="badge ${cls}">${label}</span>`;
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+function showModal(title,body,actions){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=body;
+  document.getElementById('modal-actions').innerHTML=actions;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+</script>
+</body>
+</html>
